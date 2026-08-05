@@ -160,15 +160,19 @@ tbody tr:nth-child(even) { background: var(--band); }
 /* the countdown — what would make an undecided finding decidable --------- */
 .needs { color: var(--accent); font-weight: 600; }
 
-.frame { border: 1px solid var(--rule); border-radius: 4px; padding: 14px 16px;
-  margin: 12px 0; background: var(--band); break-inside: avoid; }
-.frame h4 { margin: 0 0 4px; font-size: 13.5px; font-weight: 700; }
-.frame p { margin: 0; color: var(--soft); }
-.frame + .frame { margin-top: 10px; }
-
 footer { margin-top: 10mm; padding-top: 8px; border-top: 1px solid var(--rule);
   font-size: 10.5px; color: var(--muted); display: flex;
   justify-content: space-between; gap: 12px; }
+
+/* appendix — method/limits/credits. Flows onto the tail of the last page
+   rather than forcing a fresh one: it is reference material, not a finding,
+   and does not earn a page of its own. */
+.appendix { margin-top: 14mm; padding-top: 10px; border-top: 1px solid var(--ink);
+  font-size: 11.5px; }
+.appendix h2 { font-size: 15px; margin-bottom: 8px; }
+.appendix h3 { font-size: 11.5px; margin: 12px 0 4px; color: var(--soft); }
+.appendix p { margin: 0 0 6px; max-width: 74ch; }
+.appendix ul { margin: 0 0 6px; padding-left: 16px; }
 """
 
 VERDICT_CLASS = {"strong": "v-strong", "moderate": "v-moderate"}
@@ -625,107 +629,29 @@ def _recommendations(ctx: dict) -> str:
 </section>"""
 
 
-def _frameworks(ctx: dict) -> str:
-    """The creator playbook this report's checks are built on, stated plainly.
-
-    Included because the analysis keeps referring to it — content style, hooks,
-    profile conversion — and a reader deserves the underlying model rather than
-    just its verdicts.
-    """
-    audit = ctx.get("profile_audit")
-    words = (ctx.get("research") or {}).get("audience_words") or []
-    themes_info = ctx["themes"]
-    eff = themes_info.get("effective_themes")
-
-    style_line = (f"Your feed currently reads as about <strong>{eff} distinct "
-                  f"styles</strong>. " if eff else "")
-    audience_line = ("Words the accounts around you repeat in their bios: "
-                     + ", ".join(esc(w) for w in words[:8]) + ". "
-                     if words else "")
-    profile_line = (f"You passed {audit['passed']} of {audit['total']} profile "
-                    f"checks. " if audit else "")
-
-    return f"""
-<section class="page">
-  <h2>The frameworks behind this</h2>
-  <p class="sub">{esc(voice.report("frameworks.sub"))}</p>
-
-  <div class="frame">
-    <h4>1. Find the audience by studying who already has it</h4>
-    <p>Somebody is already making content for the people you want. Read how
-       they name their audience in their bio, what they post about, what
-       register they write in. {audience_line}That is your positioning research,
-       and it is free.</p>
-  </div>
-
-  <div class="frame">
-    <h4>2. The profile converts, the content only delivers</h4>
-    <p>Reach gets someone to a video; the profile turns them into a follower.
-       Four things do that work: a picture that still reads at comment size, a
-       bio of three or four scannable lines that names who it is for and what
-       they get, a link so the attention has somewhere to go, and pinned posts
-       that show your best work first. {profile_line}The audit page has the
-       specifics.</p>
-  </div>
-
-  <div class="frame">
-    <h4>3. A unique style is found by subtraction</h4>
-    <p>Test several kinds of content, drop the ones that do not travel, replace
-       them, repeat. {style_line}That loop is what the theme table on this
-       report is measuring — Keep, Ditch and Test more are the three moves in
-       it. The trap is quitting a style before you have made enough of it to
-       know.</p>
-  </div>
-
-  <div class="frame">
-    <h4>4. The hook is the whole first second</h4>
-    <p>A strong opening buys you the rest of the video, and a script that holds
-       after the hook is what turns a view into watch time. Vary the shape of
-       your openings — repeating the same opener is one of the least visible
-       ways to lose reach, and the hooks page checks for exactly that.</p>
-  </div>
-
-  <div class="frame">
-    <h4>5. Post often enough to learn</h4>
-    <p>Daily is the advice, and the reason is not the algorithm — it is that
-       you cannot find your style from six posts. Frequency is what makes
-       everything else in this report measurable. The timing page tests whether
-       it has shown up in your own numbers yet.</p>
-  </div>
-
-  <footer><span>{esc(attribution.stamp_footer())}</span><span>Frameworks</span></footer>
-</section>"""
-
-
 def _method(ctx: dict) -> str:
+    """Method, limits and credits — a compact appendix, not a section.
+
+    Reference material a reader checks once, not a finding. It used to force
+    its own page; now it flows onto the tail of whatever page precedes it, so
+    it costs the space it actually needs rather than a whole page slot.
+    """
     meta = ctx["meta"]
     t = ctx["themes"]
-    credits = "".join(f"<li>{esc(line)}</li>" for line in attribution.credit_lines())
+    credits = " · ".join(esc(line) for line in attribution.credit_lines())
     return f"""
-<section class="page">
+<div class="appendix">
   <h2>Method, limits and credits</h2>
-
-  <h3>{esc(voice.report("method.how"))}</h3>
-  <p>{"I read the catalogue via" if not voice.is_plain() else "The catalogue was read via"}
-     <strong>{esc(meta['harvest_tier'])}</strong>, which returns the same public
-     metrics any visitor can see: views, likes, comments, shares, caption,
-     duration and upload time. Nothing was downloaded and no engagement was
-     automated.</p>
-  <p>{"I grouped the themes by" if not voice.is_plain() else "Themes were found by"}
-     {esc(t['method'])}. Where several counts fitted about equally well I took the
-     simpler split, because a feed shattered into twelve themes is not something
-     anyone can act on.</p>
-  <p>{voice.report("method.significance")}</p>
-  <p>{esc(voice.report("method.timezone"))}</p>
-
-  <h3>{esc(voice.report("method.unavailable"))}</h3>
-  <p>{voice.report("method.owner_only")}</p>
-
-  <h3>Credits</h3>
-  <ul>{credits}</ul>
-  <p class="sub">{esc(attribution.TAG)}</p>
-  <footer><span>{esc(attribution.stamp_footer())}</span><span>Method</span></footer>
-</section>"""
+  <p><strong>{esc(voice.report("method.how"))}:</strong>
+     {"read via" if not voice.is_plain() else "Read via"}
+     <strong>{esc(meta['harvest_tier'])}</strong> — the same public metrics any
+     visitor can see. Nothing downloaded, no engagement automated. Themes were
+     grouped by {esc(t['method'])}. {voice.report("method.significance")}
+     {esc(voice.report("method.timezone"))}</p>
+  <p><strong>{esc(voice.report("method.unavailable"))}:</strong>
+     {voice.report("method.owner_only")}</p>
+  <p class="sub">{credits} — {esc(attribution.TAG)}</p>
+</div>"""
 
 
 # ==================================================================== assembly
@@ -745,7 +671,6 @@ def render(ctx: dict) -> str:
         _timing(ctx),
         _demand(ctx),
         _calendar(ctx),
-        _frameworks(ctx),
         _method(ctx),
     ] if part)
 
