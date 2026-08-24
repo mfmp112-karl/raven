@@ -416,3 +416,7 @@ around.
 The credit line in the output is a courtesy the tool keeps for itself, not a
 condition of the licence. Keeping it costs you one line and is simply the
 decent thing to do.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
