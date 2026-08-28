@@ -24,19 +24,22 @@ import re
 from ..analyse.themes import readable
 
 #: Formats worth naming, keyed to the account's own measured strengths.
+#: Each entry is (headline, evidence, move) — the report states the evidence
+#: before the move, never the other way round.
 FORMAT_MOVES = {
     "long": ("Go longer than feels comfortable",
-             "Your longer posts travel further than your short ones. Try a "
-             "single idea explained properly rather than a clip."),
+             "Your longer posts travel further than your short ones.",
+             "try a single idea explained properly rather than a clip."),
     "short": ("Cut harder",
-              "Your shorter posts travel further. Get to the point in the "
-              "first two seconds and end before the idea runs out."),
+              "Your shorter posts travel further than your long ones.",
+              "get to the point in the first two seconds and end before the "
+              "idea runs out."),
     "reply": ("Reply to comments on camera",
-              "Your replies to comments outperform your standalone posts. "
-              "Mine your own comment section for the next five videos."),
+              "Your replies to comments outperform your standalone posts.",
+              "mine your own comment section for the next five videos."),
     "original": ("Lead with your own ideas",
-                 "Your original posts travel further than your replies. "
-                 "Comment replies are filler here, not fuel."),
+                 "Your original posts travel further than your replies.",
+                 "treat comment replies as filler here, not fuel."),
 }
 
 #: Somebody wanting to know something. A question mark, or a question opener
@@ -122,26 +125,32 @@ def build(*, analysis: dict, theme_calls: dict, shortlist: list[dict],
     recs: list[dict] = []
 
     # --- 1. double down on what already travels ---------------------------
+    # Every "why" below follows one shape: what currently works, and why —
+    # then, separately, what the good move is. Evidence first, move second,
+    # never blended into one clause. Ogilvy #10: facts don't stand alone.
     for theme in shortlist:
         call = theme_calls.get(theme["name"], {}).get("call")
         if call == "keep":
             recs.append({
                 "kind": "more",
                 "headline": f"Make more about {readable(theme['name'])}",
-                "why": (f"{theme['n']} posts, averaging {theme['index']}% of your "
-                        f"own average. This one is proven, not a hunch."),
+                "why": (f"What's working: {readable(theme['name'])} — "
+                        f"{theme['n']} posts, averaging {theme['index']}% of "
+                        f"your own average. That's proven, not a hunch. "
+                        "Good move: make more of it."),
                 "source": "your own catalogue",
             })
         elif call == "test" and theme["index"] >= 115:
             need = theme.get("needs")
-            tail = (f" About {need} more on this theme would settle it."
-                    if need else "")
+            settle = f" About {need} more posts would settle it." if need else ""
             recs.append({
                 "kind": "test",
                 "headline": f"Test {readable(theme['name'])} properly",
-                "why": (f"It is running at {theme['index']}% of your average "
-                        f"across {theme['n']} posts, which is promising but not "
-                        f"yet provable.{tail}"),
+                "why": (f"Early signal: {readable(theme['name'])} is running at "
+                        f"{theme['index']}% of your average across "
+                        f"{theme['n']} posts — promising, not yet proven."
+                        f"{settle} Good move: test it properly before you "
+                        "commit more time to it."),
                 "source": "your own catalogue",
             })
 
@@ -155,10 +164,10 @@ def build(*, analysis: dict, theme_calls: dict, shortlist: list[dict],
         recs.append({
             "kind": "stop",
             "headline": f"Stop making {readable(name)} in its current form",
-            "why": (f"{row['n']} posts at {row['index']}% of your average, and "
-                    f"that gap is real rather than noise. The topic may be fine "
-                    f"— look at how these are shot and captioned before "
-                    f"abandoning it."),
+            "why": (f"What's not working: {readable(name)} — {row['n']} posts "
+                    f"at {row['index']}% of your average. That gap is real, "
+                    f"not noise. Good move: don't drop the topic yet — change "
+                    "how these are shot and captioned before you abandon it."),
             "source": "your own catalogue",
         })
 
@@ -167,18 +176,20 @@ def build(*, analysis: dict, theme_calls: dict, shortlist: list[dict],
     if dur:
         best = max(dur, key=lambda r: r["index"])
         key = "long" if "60" in best["name"] or "35" in best["name"] else "short"
-        head, why = FORMAT_MOVES[key]
+        head, evidence, move = FORMAT_MOVES[key]
         recs.append({"kind": "format", "headline": head,
-                     "why": f"{why} ({best['name']} runs at {best['index']}% of "
-                            f"your average across {best['n']} posts.)",
+                     "why": (f"What's working: {evidence} ({best['name']} runs "
+                             f"at {best['index']}% of your average across "
+                             f"{best['n']} posts.) Good move: {move}"),
                      "source": "your own catalogue"})
 
     fmt = [r for r in analysis["format"] if r["verdict"] in ("strong", "moderate")]
     if fmt:
         best = max(fmt, key=lambda r: r["index"])
         key = "reply" if "reply" in best["name"].lower() else "original"
-        head, why = FORMAT_MOVES[key]
-        recs.append({"kind": "format", "headline": head, "why": why,
+        head, evidence, move = FORMAT_MOVES[key]
+        recs.append({"kind": "format", "headline": head,
+                     "why": f"What's working: {evidence} Good move: {move}",
                      "source": "your own catalogue"})
 
     # --- 4. answer what the niche is asking ------------------------------
@@ -190,9 +201,10 @@ def build(*, analysis: dict, theme_calls: dict, shortlist: list[dict],
         recs.append({
             "kind": "gap",
             "headline": f"Try {readable(tag)}",
-            "why": (f"It is running through this niche right now and you have "
-                    f"never posted under it. Treat it as an experiment, not a "
-                    f"commitment."),
+            "why": (f"What's happening: {readable(tag)} is running through "
+                    f"this niche right now, and you have never posted under "
+                    f"it. Good move: treat it as an experiment, not a "
+                    "commitment."),
             "source": "TikTok niche scan",
         })
 
@@ -201,12 +213,13 @@ def build(*, analysis: dict, theme_calls: dict, shortlist: list[dict],
         failing = [c for c in profile_audit["checks"] if not c["pass"]]
         if failing:
             first = failing[0]
+            tail = (f" ({len(failing)} profile checks need attention.)"
+                     if len(failing) > 1 else "")
             recs.append({
                 "kind": "profile",
                 "headline": f"Fix your profile: {first['name'].lower()}",
-                "why": (f"{first['detail']} {first.get('fix', '')}".strip() +
-                        (f" ({len(failing)} profile checks need attention.)"
-                         if len(failing) > 1 else "")),
+                "why": (f"What's leaking: {first['detail']}{tail} "
+                        f"Good move: {first.get('fix', '')}".strip()),
                 "source": "profile audit",
             })
 
@@ -216,9 +229,10 @@ def build(*, analysis: dict, theme_calls: dict, shortlist: list[dict],
         recs.append({
             "kind": "cadence",
             "headline": "Get back to your old posting rate",
-            "why": (f"You are at {rhythm.get('recent_per_week')} posts a week "
-                    f"against a lifetime {rhythm.get('per_week')}. Nothing in "
-                    f"this report can improve while output is falling."),
+            "why": (f"What's slipping: you're at {rhythm.get('recent_per_week')} "
+                    f"posts a week against a lifetime {rhythm.get('per_week')}. "
+                    f"Good move: get back to your old rate — nothing else in "
+                    "this report can improve while output keeps falling."),
             "source": "your own catalogue",
         })
 
@@ -227,9 +241,11 @@ def build(*, analysis: dict, theme_calls: dict, shortlist: list[dict],
         recs.append({
             "kind": "hooks",
             "headline": "Break up your opening lines",
-            "why": (f"{rep['templated_share']}% of your captions open with "
-                    f"phrasing you have used at least three times. Repetition "
-                    f"in the opener is one of the least visible drags on reach."),
+            "why": (f"What's dragging: {rep['templated_share']}% of your "
+                    f"captions open with phrasing you have used at least "
+                    f"three times. That repetition in the opener is one of "
+                    f"the least visible drags on reach. Good move: break up "
+                    "your opening lines."),
             "source": "hook teardown",
         })
 
